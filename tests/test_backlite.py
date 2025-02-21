@@ -1,5 +1,7 @@
 import shutil
 import time
+from datetime import UTC
+from datetime import datetime
 from functools import partial
 from pathlib import Path
 
@@ -40,7 +42,7 @@ def test_cache_set_many_get_many(cache: Cache):
 
 
 def test_least_recently_used_eviction_policy():
-    cache = make_test_cache(approximate_size_limit=7, eviction_policy="least-recently-used")
+    cache = make_test_cache(size_limit=7, eviction_policy="least-recently-used")
 
     item_1 = CacheItem(value=b"123")
     cache.set_one("key1", item_1)
@@ -64,7 +66,7 @@ def test_least_recently_used_eviction_policy():
 
 
 def test_least_frequently_use_eviction_policy():
-    cache = make_test_cache(approximate_size_limit=7, eviction_policy="least-frequently-used")
+    cache = make_test_cache(size_limit=7, eviction_policy="least-frequently-used")
 
     item_1 = CacheItem(value=b"123")
     cache.set_one("key1", item_1)
@@ -82,3 +84,42 @@ def test_least_frequently_use_eviction_policy():
     assert cache.get_one("key1") == item_1
     assert cache.get_one("key2") is None
     assert cache.get_one("key3") == item_3
+
+
+def test_item_larger_than_size_limit_not_stored():
+    cache = make_test_cache(size_limit=3)
+
+    item = CacheItem(value=b"12345")
+    cache.set_one("key", item)
+    assert cache.get_one("key") is None
+
+
+def test_items_totalling_larger_than_size_limit_are_evicted():
+    cache = make_test_cache(size_limit=5)
+
+    items = {
+        "key1": CacheItem(value=b"123"),
+        "key2": CacheItem(value=b"456"),
+        "key3": CacheItem(value=b"789"),
+    }
+    cache.set_many(items)
+    assert len(cache.get_many(items.keys())) == 1
+
+
+def test_exires_at():
+    cache = make_test_cache()
+
+    now = datetime.now(UTC)
+    item1 = CacheItem(value=b"123", expires_at=now)
+    cache.set_one("key1", item1)
+
+    time.sleep(0.1)
+
+    # no evictions until next set call
+    item2 = CacheItem(value=b"456")
+    cache.set_one("key2", item2)
+
+    # cache should have cleaned up key1 after the set call
+    assert cache.get_one("key1") is None
+
+    assert cache.get_one("key2") == item2

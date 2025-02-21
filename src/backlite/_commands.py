@@ -37,20 +37,22 @@ def get_cache_items(conn: sqlite3.Connection, keys: Collection[str]) -> Mapping[
     return result
 
 
-def set_cache_items(conn: sqlite3.Connection, values: Mapping[str, CacheItem]) -> None:
+def set_cache_items(conn: sqlite3.Connection, items: Mapping[str, CacheItem]) -> None:
     """Update the cache with the given values."""
     conn.executemany(
         """
         INSERT OR REPLACE INTO cache (key, value, expires_at)
-        VALUES (?, ?, STRFTIME('%Y-%m-%d %H:%M:%f', ?))
+        VALUES (?, ?, ?)
         """,
         [
             (
                 key,
                 value["value"],
-                value.get("expires_at"),
+                expires_at.timestamp()
+                if (expires_at := value.get("expires_at")) is not None
+                else None,
             )
-            for key, value in values.items()
+            for key, value in items.items()
         ],
     )
 
@@ -58,16 +60,19 @@ def set_cache_items(conn: sqlite3.Connection, values: Mapping[str, CacheItem]) -
 def evict_from_cache(
     conn: sqlite3.Connection,
     *,
-    cache_size_limit: int,
+    size_limit: int,
     policy: EvictionPolicy,
 ) -> None:
     """Evict items from the cache until the total size is less than the max size."""
     # Cleanup expired items first
-    conn.execute("DELETE FROM cache WHERE expires_at < CURRENT_TIMESTAMP")
+    conn.execute(
+        "DELETE FROM cache WHERE expires_at IS NOT NULL AND expires_at < unixepoch('subsec')"
+    )
 
     # Pick how to order the cache items when deciding which to evict
     order_by = _SORT_BY_POLICY[policy]
 
+    # Delete items until the total size is less than the max size
     conn.execute(
         # This query performs a cumulative sum of the value lengths and deletes
         # all rows where the cumulative sum exceeds the cache size limit. The rows
@@ -92,7 +97,7 @@ def evict_from_cache(
             ORDER BY CACHE.{order_by}
         )
         """,  # noqa: S608
-        (cache_size_limit,),
+        (size_limit,),
     )
 
 

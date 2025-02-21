@@ -28,9 +28,9 @@ def v1(conn: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS cache (
             key TEXT PRIMARY KEY,
             value BLOB NOT NULL,
-            accessed_at FLOAT NOT NULL DEFAULT (unixepoch('subsec')),
+            accessed_at REAL NOT NULL DEFAULT (unixepoch('subsec')),
             access_count INTEGER NOT NULL DEFAULT 0,
-            expires_at TIMESTAMP
+            expires_at REAL
         )
     """)
     conn.execute("""

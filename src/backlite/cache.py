@@ -25,7 +25,7 @@ class Cache:
         directory: Path | str,
         *,
         lock_timeout: float = -1,
-        approximate_size_limit: int = 1024**3,  # 1 GiB
+        size_limit: int = 1024**3,  # 1 GB
         eviction_policy: EvictionPolicy = "least-recently-used",
         mkdir: bool = True,
     ) -> None:
@@ -36,7 +36,7 @@ class Cache:
                 The directory to store the cache in.
             lock_timeout:
                 The maximum time to wait for the lock.
-            approximate_size_limit:
+            size_limit:
                 An approximate limit on the size of the cache. Approximate because the size of the
                 cache is calculated based on the length of the stored values in bytes not the size
                 of the SQLite file itself.
@@ -56,7 +56,7 @@ class Cache:
         self.lock = FileLock(directory / "cache.lock", timeout=lock_timeout)
         self._conn = _connector(directory, self.lock)
         self._eviction_policy: EvictionPolicy = eviction_policy
-        self._cache_size_limit = approximate_size_limit
+        self._size_limit = size_limit
 
         self._init()
 
@@ -65,7 +65,7 @@ class Cache:
             _migrations.run(conn)
             _commands.evict_from_cache(
                 conn,
-                cache_size_limit=self._cache_size_limit,
+                size_limit=self._size_limit,
                 policy=self._eviction_policy,
             )
 
@@ -89,11 +89,37 @@ class Cache:
             # Evict items to make room for the new ones
             _commands.evict_from_cache(
                 cursor,
-                cache_size_limit=self._cache_size_limit - items_size,
+                size_limit=self._size_limit - items_size,
                 policy=self._eviction_policy,
             )
             # Then set the new items
             _commands.set_cache_items(cursor, items)
+            # Finally, evict again to ensure the cache is within the size limit
+            if items_size > self._size_limit:
+                _commands.evict_from_cache(
+                    cursor,
+                    size_limit=self._size_limit,
+                    policy=self._eviction_policy,
+                )
+
+
+def _prepare_items(
+    items: Mapping[str, CacheItem],
+    size_limit: int,
+) -> tuple[Mapping[str, CacheItem], int]:
+    """Prepare items to be set in the cache.
+
+    Items that are too large are excluded.
+    """
+    size = 0
+    to_set: dict[str, CacheItem] = {}
+    for k, i in items.items():
+        item_size = len(i["value"])
+        if item_size > size_limit:
+            continue
+        size += item_size
+        to_set[k] = i
+    return to_set, size
 
 
 def _connector(
