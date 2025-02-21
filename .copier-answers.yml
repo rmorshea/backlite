@@ -1,0 +1,10 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v2025.02.0
+_src_path: https://github.com/rmorshea/python-copier-template
+author_email: ryan.morshead@gmail.com
+author_name: Ryan Morshead
+project_description: A file-based caching library backed by SQLite
+project_title: BackLite
+python_package_name: kvlite
+python_version_range: ">=3.11"
+repo_url: https://github.com/rmorshea/backlite
