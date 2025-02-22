@@ -54,7 +54,7 @@ class Cache:
             directory.mkdir(parents=True, exist_ok=True)
 
         self.lock = FileLock(directory / "cache.lock", timeout=lock_timeout)
-        self._conn = _connector(directory, self.lock)
+        self._conn = _connector(directory / "cache.db", self.lock)
         self._eviction_policy: EvictionPolicy = eviction_policy
         self._size_limit = size_limit
 
@@ -63,7 +63,7 @@ class Cache:
     def _init(self) -> None:
         with self._conn() as conn:
             _migrations.run(conn)
-            _commands.evict_from_cache(
+            _commands.evict_cache_items(
                 conn,
                 size_limit=self._size_limit,
                 policy=self._eviction_policy,
@@ -87,16 +87,16 @@ class Cache:
         with self._conn() as cursor:
             items_size = sum(len(item["value"]) for item in items.values())
             # Evict items to make room for the new ones
-            _commands.evict_from_cache(
+            _commands.evict_cache_items(
                 cursor,
                 size_limit=self._size_limit - items_size,
                 policy=self._eviction_policy,
             )
             # Then set the new items
             _commands.set_cache_items(cursor, items)
-            # Finally, evict again to ensure the cache is within the size limit
+            # If the items are larger than the size limit evict again
             if items_size > self._size_limit:
-                _commands.evict_from_cache(
+                _commands.evict_cache_items(
                     cursor,
                     size_limit=self._size_limit,
                     policy=self._eviction_policy,
@@ -123,14 +123,12 @@ def _prepare_items(
 
 
 def _connector(
-    directory: Path,
+    path: Path,
     lock: BaseFileLock,
 ) -> Callable[[], AbstractContextManager[sqlite3.Connection]]:
-    conn = sqlite3.connect(directory / "cache.db")
-
     @contextmanager
     def connect() -> Iterator[sqlite3.Connection]:
-        with lock, conn:
+        with lock, sqlite3.connect(path) as conn:
             yield conn
 
     return connect

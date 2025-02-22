@@ -57,7 +57,7 @@ def set_cache_items(conn: sqlite3.Connection, items: Mapping[str, CacheItem]) ->
     )
 
 
-def evict_from_cache(
+def evict_cache_items(
     conn: sqlite3.Connection,
     *,
     size_limit: int,
@@ -69,41 +69,34 @@ def evict_from_cache(
         "DELETE FROM cache WHERE expires_at IS NOT NULL AND expires_at < unixepoch('subsec')"
     )
 
-    # Pick how to order the cache items when deciding which to evict
-    order_by = _SORT_BY_POLICY[policy]
+    # Get the current size of the cache
+    current_size = get_metadata(conn, "total_value_size") or 0
 
-    # Delete items until the total size is less than the max size
+    # If the current size is already less than the limit, do nothing
+    if current_size <= size_limit:
+        return
+
+    # Pick the keys to evict based on the policy
+    keys_to_evict: list[str] = []
+    order_by = _SORT_BY_POLICY[policy]
+    for key, size in conn.execute(
+        f"SELECT key, LENGTH(value) FROM cache ORDER BY {order_by}"  # noqa: S608
+    ).fetchall():
+        keys_to_evict.append(key)
+        current_size -= size
+        if current_size <= size_limit:
+            break
+
+    # Evict the items
     conn.execute(
-        # This query performs a cumulative sum of the value lengths and deletes
-        # all rows where the cumulative sum exceeds the cache size limit. The rows
-        # are ordered such that the least recently used items are deleted first.
-        f"""
-        WITH cumsum AS (
-            SELECT
-                key,
-                LENGTH(value) AS value_length,
-                SUM(LENGTH(value)) OVER (
-                    ORDER BY {order_by}
-                    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-                ) AS cumulative_value_length
-            FROM cache
-        )
-        DELETE FROM cache
-        WHERE key IN (
-            SELECT cache.key
-            FROM cache
-            JOIN cumsum ON cache.KEY = cumsum.KEY
-            WHERE cumsum.cumulative_value_length > ?
-            ORDER BY CACHE.{order_by}
-        )
-        """,  # noqa: S608
-        (size_limit,),
+        f"DELETE FROM cache WHERE key IN ({', '.join('?' for _ in keys_to_evict)})",  # noqa: S608
+        tuple(keys_to_evict),
     )
 
 
 _SORT_BY_POLICY: Mapping[EvictionPolicy, str] = {
-    "least-recently-used": "accessed_at DESC",
-    "least-frequently-used": "access_count DESC",
+    "least-recently-used": "accessed_at ASC",
+    "least-frequently-used": "access_count ASC",
 }
 
 

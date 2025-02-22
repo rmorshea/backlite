@@ -39,3 +39,25 @@ def v1(conn: sqlite3.Connection) -> None:
             value JSON NOT NULL
         )
     """)
+    conn.execute("""
+        INSERT OR IGNORE INTO metadata (key, value)
+        VALUES ('total_value_size', 0)
+    """)
+    conn.execute("""
+        CREATE TRIGGER IF NOT EXISTS total_value_size_on_insert
+        AFTER INSERT ON cache
+        BEGIN
+            UPDATE metadata
+            SET value = value + LENGTH(NEW.value)
+            WHERE key = 'total_value_size';
+        END
+    """)
+    conn.execute("""
+        CREATE TRIGGER IF NOT EXISTS total_value_size_on_delete
+        AFTER DELETE ON cache
+        BEGIN
+            UPDATE metadata
+            SET value = value - LENGTH(OLD.value)
+            WHERE key = 'total_value_size';
+        END
+    """)

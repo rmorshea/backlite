@@ -123,3 +123,27 @@ def test_exires_at():
     assert cache.get_one("key1") is None
 
     assert cache.get_one("key2") == item2
+
+
+def test_performance_adding_items_scaling():
+    """The goal of this test is to ensure that adding items doesn't have scalability issues."""
+    cache = make_test_cache()
+    item = CacheItem(value=b"")
+
+    # measure time of single set_one call
+    old_start = time.time()
+    cache.set_one("key0", item)
+    old_duration = time.time() - old_start
+
+    # add many items to the cache
+    for i in range(1, 2000):
+        cache.set_one(f"key{i}", item)
+
+    # measure time of single set_one call again
+    new_start = time.time()
+    cache.set_one("x", item)
+    new_duration = time.time() - new_start
+
+    # check that the time taken for the single set_one call is not significantly larger
+    old_duration_with_buffer = old_duration * 2  # allow for some variance
+    assert new_duration < old_duration_with_buffer
