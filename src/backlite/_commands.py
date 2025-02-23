@@ -29,7 +29,7 @@ def get_cache_items(conn: sqlite3.Connection, keys: Collection[str]) -> Mapping[
         f"""
         UPDATE cache
         SET accessed_at = unixepoch('subsec'),
-            access_count = access_count + 1
+            accessed_count = accessed_count + 1
         WHERE key IN ({", ".join("?" for _ in keys)})
         """,  # noqa: S608
         tuple(keys),
@@ -96,7 +96,7 @@ def evict_cache_items(
 
 _SORT_BY_POLICY: Mapping[EvictionPolicy, str] = {
     "least-recently-used": "accessed_at ASC",
-    "least-frequently-used": "access_count ASC",
+    "least-frequently-used": "accessed_count ASC",
 }
 
 

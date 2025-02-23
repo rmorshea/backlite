@@ -46,8 +46,9 @@ class Cache:
 
         path = Path(path)
         if mkdir:
-            path.mkdir(parents=True, exist_ok=True)
+            path.parent.mkdir(parents=True, exist_ok=True)
 
+        sqlite3.connect(path)
         self._conn = _connector(path)
         self._eviction_policy: EvictionPolicy = eviction_policy
         self._size_limit = size_limit

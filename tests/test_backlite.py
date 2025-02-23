@@ -1,9 +1,10 @@
 import shutil
 import time
+from collections.abc import Iterator
 from datetime import UTC
 from datetime import datetime
-from functools import partial
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -14,25 +15,29 @@ CACHES_DIR = Path(__file__).parent / "caches"
 
 
 @pytest.fixture(autouse=True)
-def clean_caches():
+def clean_caches_dir() -> Iterator[None]:
+    CACHES_DIR.mkdir(parents=True, exist_ok=True)
     yield
     shutil.rmtree(CACHES_DIR, ignore_errors=True)
 
 
-make_test_cache = partial(Cache, CACHES_DIR / "main.db")
+class CleanCache(Cache):
+    __init__ = (
+        Cache.__init__
+        if TYPE_CHECKING
+        else lambda self, p, *a, **kw: super(CleanCache, self).__init__(CACHES_DIR / p, *a, **kw)
+    )
 
 
-def test_cache_set_one_get_one(cache: Cache):
-    cache = make_test_cache()
-
+def test_cache_set_one_get_one():
+    cache = CleanCache("test.db")
     item = CacheItem(value=b"Hello, Alice!")
     cache.set_one("key", item)
     assert cache.get_one("key") == item
 
 
 def test_cache_set_many_get_many(cache: Cache):
-    cache = make_test_cache()
-
+    cache = CleanCache("test.db")
     items = {
         "key1": CacheItem(value=b"Hello, Alice!"),
         "key2": CacheItem(value=b"Hello, Bob!"),
@@ -42,7 +47,7 @@ def test_cache_set_many_get_many(cache: Cache):
 
 
 def test_least_recently_used_eviction_policy():
-    cache = make_test_cache(size_limit=7, eviction_policy="least-recently-used")
+    cache = CleanCache("test.db", size_limit=7, eviction_policy="least-recently-used")
 
     item_1 = CacheItem(value=b"123")
     cache.set_one("key1", item_1)
@@ -66,7 +71,7 @@ def test_least_recently_used_eviction_policy():
 
 
 def test_least_frequently_use_eviction_policy():
-    cache = make_test_cache(size_limit=7, eviction_policy="least-frequently-used")
+    cache = CleanCache("test.db", size_limit=7, eviction_policy="least-frequently-used")
 
     item_1 = CacheItem(value=b"123")
     cache.set_one("key1", item_1)
@@ -87,7 +92,7 @@ def test_least_frequently_use_eviction_policy():
 
 
 def test_item_larger_than_size_limit_not_stored():
-    cache = make_test_cache(size_limit=3)
+    cache = CleanCache("test.db", size_limit=3)
 
     item = CacheItem(value=b"12345")
     cache.set_one("key", item)
@@ -95,7 +100,7 @@ def test_item_larger_than_size_limit_not_stored():
 
 
 def test_items_totalling_larger_than_size_limit_are_evicted():
-    cache = make_test_cache(size_limit=5)
+    cache = CleanCache("test.db", size_limit=5)
 
     items = {
         "key1": CacheItem(value=b"123"),
@@ -107,7 +112,7 @@ def test_items_totalling_larger_than_size_limit_are_evicted():
 
 
 def test_exires_at():
-    cache = make_test_cache()
+    cache = CleanCache("test.db")
 
     now = datetime.now(UTC)
     item1 = CacheItem(value=b"123", expires_at=now)
@@ -127,7 +132,7 @@ def test_exires_at():
 
 def test_performance_adding_items_scaling():
     """The goal of this test is to ensure that adding items doesn't have scalability issues."""
-    cache = make_test_cache()
+    cache = CleanCache("test.db")
     item = CacheItem(value=b"")
 
     # measure time of single set_one call

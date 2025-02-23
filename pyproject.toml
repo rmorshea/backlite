@@ -20,6 +20,7 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python",
 ]
+dependencies = ["paramorator>=1.0.2"]
 [project.urls]
 Source = "https://github.com/rmorshea/backlite"
 
@@ -99,13 +100,15 @@ ignore = [
     "DOC501", # Ignore raises missing from docstring
     "ERA001", # Commented out code
     "FBT003", # Allow boolean positional values in function calls, like `dict.get(... True)`
+    "ISC001", # implicitly concatenated strings on a single line
     "PL",     # PyLint
     "PYI",    # Stub files
     "RET503", # Explicit return
     "RET505", # Unnecessary return statement after return
     "S105",   # Ignore checks for possible passwords
+    "S301",   # Allow pickle
+    "S403",   # Allow pickle
     "SIM117", # Use a single `with` statement
-    "ISC001", # implicitly concatenated strings on a single line
 ]
 unfixable = [
     "COM819", # Trailing comma

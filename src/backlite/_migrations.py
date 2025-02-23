@@ -1,22 +1,36 @@
 import sqlite3
+import sys
 from collections.abc import Callable
 
 from backlite import _commands
 
 CURRENT_VERSION = 1
 
+LIB_VERSION_META_KEY = "lib_version"
+PY_VERSION_META_KEY = "py_version"
+TOTAL_VALUE_SIZE_META_KEY = "total_value_size"
+
 
 def run(conn: sqlite3.Connection) -> None:
-    """Try to migrate the database to the latest version and return whether it was successful."""
-    version = _commands.get_metadata(conn, "version") or 0
+    """Migrate the database to the latest version."""
+    lib_version = _commands.get_metadata(conn, LIB_VERSION_META_KEY) or 0
 
-    if version >= CURRENT_VERSION:
+    if lib_version >= CURRENT_VERSION:
+        _truncate_if_py_version_changed(conn)
         return
 
-    for i in range(version, CURRENT_VERSION):
+    for i in range(lib_version, CURRENT_VERSION):
         UPGRADES[i](conn)
 
-    _commands.set_metadata(conn, "version", CURRENT_VERSION)
+    _commands.set_metadata(conn, "lib_version", CURRENT_VERSION)
+
+
+def _truncate_if_py_version_changed(conn: sqlite3.Connection) -> None:
+    if sys.version_info != _commands.get_metadata(conn, PY_VERSION_META_KEY):
+        conn.execute("DELETE FROM cache")
+        conn.execute("DELETE FROM metadata")
+        conn.execute("VACUUM")
+        _commands.set_metadata(conn, PY_VERSION_META_KEY, sys.version_info)
 
 
 UPGRADES: list[Callable[[sqlite3.Connection], None]] = []
@@ -29,7 +43,7 @@ def v1(conn: sqlite3.Connection) -> None:
             key TEXT PRIMARY KEY,
             value BLOB NOT NULL,
             accessed_at REAL NOT NULL DEFAULT (unixepoch('subsec')),
-            access_count INTEGER NOT NULL DEFAULT 0,
+            accessed_count INTEGER NOT NULL DEFAULT 0,
             expires_at REAL
         )
     """)
