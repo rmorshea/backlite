@@ -38,7 +38,7 @@ class Cache:
             eviction_policy:
                 The eviction policy to use.
             mkdir:
-                Whether to create the directory if it doesn't exist.
+                Whether to create the containing directory if it does not exist.
         """
         if eviction_policy not in EVICTION_POLICIES:
             msg = f"Invalid eviction policy: {eviction_policy!r}"
