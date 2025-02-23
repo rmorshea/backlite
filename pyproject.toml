@@ -20,7 +20,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python",
 ]
-dependencies = ["filelock>=3.17.0,<4"]
 [project.urls]
 Source = "https://github.com/rmorshea/backlite"
 
