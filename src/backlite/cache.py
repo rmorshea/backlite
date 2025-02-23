@@ -7,9 +7,6 @@ from contextlib import AbstractContextManager
 from contextlib import contextmanager
 from pathlib import Path
 
-from filelock import BaseFileLock
-from filelock import FileLock
-
 from backlite import _commands
 from backlite import _migrations
 from backlite.types import EVICTION_POLICIES
@@ -24,7 +21,6 @@ class Cache:
         self,
         directory: Path | str,
         *,
-        lock_timeout: float = -1,
         size_limit: int = 1024**3,  # 1 GB
         eviction_policy: EvictionPolicy = "least-recently-used",
         mkdir: bool = True,
@@ -34,8 +30,6 @@ class Cache:
         Args:
             directory:
                 The directory to store the cache in.
-            lock_timeout:
-                The maximum time to wait for the lock.
             size_limit:
                 An approximate limit on the size of the cache. Approximate because the size of the
                 cache is calculated based on the length of the stored values in bytes not the size
@@ -53,8 +47,7 @@ class Cache:
         if mkdir:
             directory.mkdir(parents=True, exist_ok=True)
 
-        self.lock = FileLock(directory / "cache.lock", timeout=lock_timeout)
-        self._conn = _connector(directory / "cache.db", self.lock)
+        self._conn = _connector(directory / "cache.db")
         self._eviction_policy: EvictionPolicy = eviction_policy
         self._size_limit = size_limit
 
@@ -122,13 +115,10 @@ def _prepare_items(
     return to_set, size
 
 
-def _connector(
-    path: Path,
-    lock: BaseFileLock,
-) -> Callable[[], AbstractContextManager[sqlite3.Connection]]:
+def _connector(path: Path) -> Callable[[], AbstractContextManager[sqlite3.Connection]]:
     @contextmanager
     def connect() -> Iterator[sqlite3.Connection]:
-        with lock, sqlite3.connect(path) as conn:
+        with sqlite3.connect(path) as conn:
             yield conn
 
     return connect
