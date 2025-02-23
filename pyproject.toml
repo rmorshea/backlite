@@ -9,7 +9,7 @@ packages = ["src/backlite"]
 
 [project]
 name = "backlite"
-version = "0.0.3"
+version = "0.0.4"
 description = "A file-based caching library backed by SQLite."
 readme = "README.md"
 requires-python = ">=3.11,<4"
