@@ -19,7 +19,7 @@ class Cache:
 
     def __init__(
         self,
-        directory: Path | str,
+        path: Path | str,
         *,
         size_limit: int = 1024**3,  # 1 GB
         eviction_policy: EvictionPolicy = "least-recently-used",
@@ -28,8 +28,9 @@ class Cache:
         """Create a new cache.
 
         Args:
-            directory:
-                The directory to store the cache in.
+            path:
+                The path to the SQLite database file. If the file does not exist, it will be
+                created.
             size_limit:
                 An approximate limit on the size of the cache. Approximate because the size of the
                 cache is calculated based on the length of the stored values in bytes not the size
@@ -43,11 +44,11 @@ class Cache:
             msg = f"Invalid eviction policy: {eviction_policy!r}"
             raise ValueError(msg)
 
-        directory = Path(directory)
+        path = Path(path)
         if mkdir:
-            directory.mkdir(parents=True, exist_ok=True)
+            path.mkdir(parents=True, exist_ok=True)
 
-        self._conn = _connector(directory / "cache.db")
+        self._conn = _connector(path)
         self._eviction_policy: EvictionPolicy = eviction_policy
         self._size_limit = size_limit
 

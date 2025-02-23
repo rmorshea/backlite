@@ -19,7 +19,7 @@ def clean_caches():
     shutil.rmtree(CACHES_DIR, ignore_errors=True)
 
 
-make_test_cache = partial(Cache, directory=CACHES_DIR)
+make_test_cache = partial(Cache, CACHES_DIR / "main.db")
 
 
 def test_cache_set_one_get_one(cache: Cache):
