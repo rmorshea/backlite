@@ -2,35 +2,33 @@ import sqlite3
 import sys
 from collections.abc import Callable
 
-from backlite import _commands
+from backlite import _metadata
 
-CURRENT_VERSION = 1
-
-LIB_VERSION_META_KEY = "lib_version"
-PY_VERSION_META_KEY = "py_version"
-TOTAL_VALUE_SIZE_META_KEY = "total_value_size"
+CURRENT_SCHEMA_VERSION = 1
 
 
 def run(conn: sqlite3.Connection) -> None:
     """Migrate the database to the latest version."""
-    lib_version = _commands.get_metadata(conn, LIB_VERSION_META_KEY) or 0
+    schema_version = (
+        _metadata.schema_version.get(conn) if _metadata.schema_version.exists(conn) else 0
+    )
 
-    if lib_version >= CURRENT_VERSION:
+    if schema_version >= CURRENT_SCHEMA_VERSION:
         _truncate_if_py_version_changed(conn)
         return
 
-    for i in range(lib_version, CURRENT_VERSION):
+    for i in range(schema_version, CURRENT_SCHEMA_VERSION):
         UPGRADES[i](conn)
 
-    _commands.set_metadata(conn, "lib_version", CURRENT_VERSION)
+    _metadata.py_version.set(conn, sys.version_info[:3])
+    _metadata.schema_version.set(conn, CURRENT_SCHEMA_VERSION)
 
 
 def _truncate_if_py_version_changed(conn: sqlite3.Connection) -> None:
-    if sys.version_info != _commands.get_metadata(conn, PY_VERSION_META_KEY):
+    if sys.version_info[:3] != _metadata.py_version.get(conn):
         conn.execute("DELETE FROM cache")
         conn.execute("DELETE FROM metadata")
-        conn.execute("VACUUM")
-        _commands.set_metadata(conn, PY_VERSION_META_KEY, sys.version_info)
+        _metadata.py_version.set(conn, sys.version_info[:3])
 
 
 UPGRADES: list[Callable[[sqlite3.Connection], None]] = []
@@ -50,7 +48,7 @@ def v1(conn: sqlite3.Connection) -> None:
     conn.execute("""
         CREATE TABLE IF NOT EXISTS metadata (
             key TEXT PRIMARY KEY,
-            value JSON NOT NULL
+            value TEXT NOT NULL
         )
     """)
     conn.execute("""

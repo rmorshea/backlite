@@ -49,14 +49,14 @@ class Cache:
             path.parent.mkdir(parents=True, exist_ok=True)
 
         sqlite3.connect(path)
-        self._conn = _connector(path)
+        self._connect = _connector(path)
         self._eviction_policy: EvictionPolicy = eviction_policy
         self._size_limit = size_limit
 
         self._init()
 
     def _init(self) -> None:
-        with self._conn() as conn:
+        with self._connect() as conn:
             _migrations.run(conn)
             _commands.evict_cache_items(
                 conn,
@@ -64,13 +64,18 @@ class Cache:
                 policy=self._eviction_policy,
             )
 
+    def get_keys(self) -> list[str]:
+        """Get the keys in the cache."""
+        with self._connect() as conn:
+            return _commands.get_cache_keys(conn)
+
     def get_one(self, key: str) -> CacheItem | None:
         """Get the value for the given key."""
         return self.get_many([key]).get(key)
 
-    def get_many(self, keys: Collection[str]) -> Mapping[str, CacheItem]:
+    def get_many(self, keys: Collection[str] | None = None) -> Mapping[str, CacheItem]:
         """Get the value for the given key."""
-        with self._conn() as conn:
+        with self._connect() as conn:
             return _commands.get_cache_items(conn, keys)
 
     def set_one(self, key: str, item: CacheItem) -> None:
@@ -79,7 +84,7 @@ class Cache:
 
     def set_many(self, items: Mapping[str, CacheItem]) -> None:
         """Set the value for the given key."""
-        with self._conn() as cursor:
+        with self._connect() as cursor:
             items_size = sum(len(item["value"]) for item in items.values())
             # Evict items to make room for the new ones
             _commands.evict_cache_items(

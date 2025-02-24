@@ -1,32 +1,10 @@
-import shutil
 import time
-from collections.abc import Iterator
 from datetime import UTC
 from datetime import datetime
-from pathlib import Path
-from typing import TYPE_CHECKING
-
-import pytest
 
 from backlite import Cache
 from backlite.types import CacheItem
-
-CACHES_DIR = Path(__file__).parent / "caches"
-
-
-@pytest.fixture(autouse=True)
-def clean_caches_dir() -> Iterator[None]:
-    CACHES_DIR.mkdir(parents=True, exist_ok=True)
-    yield
-    shutil.rmtree(CACHES_DIR, ignore_errors=True)
-
-
-class CleanCache(Cache):
-    __init__ = (
-        Cache.__init__
-        if TYPE_CHECKING
-        else lambda self, p, *a, **kw: super(CleanCache, self).__init__(CACHES_DIR / p, *a, **kw)
-    )
+from tests.conftest import CleanCache
 
 
 def test_cache_set_one_get_one():
@@ -152,3 +130,26 @@ def test_performance_adding_items_scaling():
     # check that the time taken for the single set_one call is not significantly larger
     old_duration_with_buffer = old_duration * 2  # allow for some variance
     assert new_duration < old_duration_with_buffer
+
+
+def test_get_all_items():
+    cache = CleanCache("test.db")
+
+    items = {
+        "key1": CacheItem(value=b"Hello, Alice!"),
+        "key2": CacheItem(value=b"Hello, Bob!"),
+    }
+    cache.set_many(items)
+
+    assert cache.get_many() == items
+
+
+def test_get_keys():
+    cache = CleanCache("test.db")
+    items = {
+        "key1": CacheItem(value=b"Hello, Alice!"),
+        "key2": CacheItem(value=b"Hello, Bob!"),
+    }
+    cache.set_many(items)
+
+    assert set(cache.get_keys()) == set(items.keys())

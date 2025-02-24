@@ -2,9 +2,7 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version
 
 from backlite.cache import Cache
-from backlite.decorators import async_barrier
 from backlite.decorators import async_cached
-from backlite.decorators import barrier
 from backlite.decorators import cached
 from backlite.types import EVICTION_POLICIES
 from backlite.types import CacheItem
@@ -22,8 +20,6 @@ __all__ = (
     "CacheItem",
     "EvictionPolicy",
     "ParamHashFunc",
-    "async_barrier",
     "async_cached",
-    "barrier",
     "cached",
 )

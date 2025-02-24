@@ -3,27 +3,45 @@ from collections.abc import Collection
 from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
-from typing import Any
 
+from backlite._metadata import total_value_size
 from backlite.types import CacheItem
 from backlite.types import EvictionPolicy
 
 
-def get_cache_items(conn: sqlite3.Connection, keys: Collection[str]) -> Mapping[str, CacheItem]:
+def get_cache_keys(conn: sqlite3.Connection) -> list[str]:
+    """Get the keys in the cache."""
+    rows = conn.execute("SELECT key FROM cache").fetchall()
+    return [r[0] for r in rows]
+
+
+def get_cache_items(
+    conn: sqlite3.Connection,
+    keys: Collection[str] | None,
+) -> Mapping[str, CacheItem]:
     """Get the values for the given keys."""
-    cur = conn.execute(
-        f"""
-        SELECT key, value, expires_at
-        FROM cache
-        WHERE key IN ({", ".join("?" for _ in keys)})
-        """,  # noqa: S608 (ok because values are not user input)
-        tuple(keys),
-    )
+    if keys is None:
+        rows = conn.execute(
+            """
+            SELECT key, value, expires_at
+            FROM cache
+            """
+        ).fetchall()
+        keys = [r[0] for r in rows]
+    else:
+        rows = conn.execute(
+            f"""
+            SELECT key, value, expires_at
+            FROM cache
+            WHERE key IN ({", ".join("?" for _ in keys)})
+            """,  # noqa: S608 (ok because values are not user input)
+            tuple(keys),
+        ).fetchall()
     result = {
         key: CacheItem(value=value, expires_at=datetime.fromtimestamp(expires_at, tz=UTC))
         if expires_at is not None
         else CacheItem(value=value)
-        for key, value, expires_at in cur.fetchall()
+        for key, value, expires_at in rows
     }
     conn.execute(
         f"""
@@ -70,7 +88,7 @@ def evict_cache_items(
     )
 
     # Get the current size of the cache
-    current_size = get_metadata(conn, "total_value_size") or 0
+    current_size = total_value_size.get(conn)
 
     # If the current size is already less than the limit, do nothing
     if current_size <= size_limit:
@@ -98,23 +116,3 @@ _SORT_BY_POLICY: Mapping[EvictionPolicy, str] = {
     "least-recently-used": "accessed_at ASC",
     "least-frequently-used": "accessed_count ASC",
 }
-
-
-def get_metadata(conn: sqlite3.Connection, key: str) -> Any | None:
-    """Get the metadata value for the given key."""
-    # check if metadata table exists
-    table_exists = conn.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='metadata'"
-    ).fetchone()
-    if table_exists is None:
-        return None
-
-    row = conn.execute("SELECT value FROM metadata WHERE key = ?", (key,)).fetchone()
-    if row is None:
-        return None
-    return row[0]
-
-
-def set_metadata(conn: sqlite3.Connection, key: str, value: Any) -> None:
-    """Set the metadata value for the given key."""
-    conn.execute("INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)", (key, value))
