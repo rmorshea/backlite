@@ -70,11 +70,6 @@ class Cache:
                 policy=self._eviction_policy,
             )
 
-    def get_keys(self) -> list[str]:
-        """Get the keys in the cache."""
-        with self._connect() as conn:
-            return _commands.get_cache_keys(conn)
-
     def get_one(self, key: str) -> CacheItem | None:
         """Get the value for the given key."""
         return self.get_many([key]).get(key)
@@ -107,6 +102,17 @@ class Cache:
                     size_limit=self._size_limit,
                     policy=self._eviction_policy,
                 )
+
+    def get_keys(self, check: Collection[str] | None = None) -> set[str]:
+        """Get keys from the cache.
+
+        Args:
+            check:
+                Keys to check the cache for. If a key is not in the cache, it will be
+                excluded from the returned set. If None, all keys will be returned.
+        """
+        with self._connect() as conn:
+            return _commands.get_cache_keys(conn, check)
 
 
 def _prepare_items(

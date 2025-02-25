@@ -9,10 +9,16 @@ from backlite.types import CacheItem
 from backlite.types import EvictionPolicy
 
 
-def get_cache_keys(conn: sqlite3.Connection) -> list[str]:
+def get_cache_keys(conn: sqlite3.Connection, keys: Collection[str] | None) -> set[str]:
     """Get the keys in the cache."""
-    rows = conn.execute("SELECT key FROM cache").fetchall()
-    return [r[0] for r in rows]
+    if not keys:
+        rows = conn.execute("SELECT key FROM cache").fetchall()
+    else:
+        rows = conn.execute(
+            f"SELECT key FROM cache WHERE key IN ({', '.join('?' for _ in keys)})",  # noqa: S608
+            tuple(keys),
+        ).fetchall()
+    return {r[0] for r in rows}
 
 
 def get_cache_items(
