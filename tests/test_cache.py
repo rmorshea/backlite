@@ -153,3 +153,4 @@ def test_get_keys():
     assert cache.get_keys() == set(items.keys())
     assert cache.get_keys(["key1"]) == {"key1"}
     assert cache.get_keys(["not_in_cache"]) == set()
+    assert cache.get_keys([]) == set()

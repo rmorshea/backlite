@@ -11,7 +11,7 @@ from backlite.types import EvictionPolicy
 
 def get_cache_keys(conn: sqlite3.Connection, keys: Collection[str] | None) -> set[str]:
     """Get the keys in the cache."""
-    if not keys:
+    if keys is None:
         rows = conn.execute("SELECT key FROM cache").fetchall()
     else:
         rows = conn.execute(
