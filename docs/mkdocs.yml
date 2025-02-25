@@ -12,7 +12,7 @@ theme:
   name: material
   icon:
     repo: fontawesome/brands/git-alt
-    logo: material/needle
+    logo: material/database
   features: [content.code.copy, toc.integrate, content.code.annotate, navigation.tabs]
   palette:
     # Palette toggle for automatic mode

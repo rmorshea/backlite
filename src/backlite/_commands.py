@@ -125,4 +125,7 @@ def evict_cache_items(
 _SORT_BY_POLICY: Mapping[EvictionPolicy, str] = {
     "least-recently-used": "accessed_at ASC",
     "least-frequently-used": "accessed_count ASC",
+    "most-recently-used": "accessed_at DESC",
+    "first-in-first-out": "created_at ASC",
+    "last-in-first-out": "created_at DESC",
 }

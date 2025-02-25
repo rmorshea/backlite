@@ -4,7 +4,6 @@ from collections.abc import Callable
 from collections.abc import Coroutine
 from contextlib import AbstractAsyncContextManager
 from contextlib import AbstractContextManager
-from datetime import timedelta
 from functools import wraps
 from inspect import Signature
 from inspect import signature
@@ -16,7 +15,7 @@ from typing import TypeVar
 from anyio.to_thread import run_sync
 from paramorator import paramorator
 
-from backlite.cache import Cache
+from backlite.storage import Storage
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -28,8 +27,7 @@ CoroCallable: TypeAlias = Callable[P, Coroutine[None, None, R]]
 def cached(
     func: Callable[P, R],
     *,
-    storage: Cache,
-    expiration: timedelta | None = None,
+    storage: Storage,
     barrier: AbstractContextManager | None = None,
 ) -> Callable[P, R]:
     """Decorate a function to cache its result."""
@@ -40,7 +38,7 @@ def cached(
             value = pickle.loads(item["value"])
         else:
             value = func(*args, **kwargs)
-            storage.set_one(key, {"value": pickle.dumps(value), "expiration": expiration})
+            storage.set_one(key, {"value": pickle.dumps(value)})
         return value
 
     if barrier:
@@ -65,9 +63,8 @@ def cached(
 @paramorator
 def async_cached(
     func: AsyncCallable[P, R],
-    storage: Cache,
+    storage: Storage,
     *,
-    expiration: timedelta | None = None,
     barrier: AbstractContextManager | AbstractAsyncContextManager | None = None,
 ) -> CoroCallable[P, R]:
     """Decorate an async function to cache its result."""
@@ -78,7 +75,7 @@ def async_cached(
             value = pickle.loads(item["value"])
         else:
             value = await func(*args, **kwargs)
-            storage.set_one(key, {"value": pickle.dumps(value), "expiration": expiration})
+            storage.set_one(key, {"value": pickle.dumps(value)})
         return value
 
     if barrier:

@@ -15,7 +15,7 @@ from backlite.types import CacheItem
 from backlite.types import EvictionPolicy
 
 
-class Cache:
+class Storage:
     """A key-value store that evicts items based on a given policy."""
 
     def __init__(
@@ -27,7 +27,7 @@ class Cache:
         default_expiration: timedelta | None = None,
         mkdir: bool = True,
     ) -> None:
-        """Create a new cache.
+        """Create a new storage.
 
         Args:
             path:

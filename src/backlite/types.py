@@ -10,6 +10,9 @@ from typing import get_args
 EvictionPolicy = Literal[
     "least-recently-used",
     "least-frequently-used",
+    "most-recently-used",
+    "first-in-first-out",
+    "last-in-first-out",
 ]
 """Defines the possible eviction policies for the cache."""
 

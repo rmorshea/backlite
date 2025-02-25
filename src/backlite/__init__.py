@@ -1,9 +1,9 @@
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version
 
-from backlite.cache import Cache
 from backlite.decorators import async_cached
 from backlite.decorators import cached
+from backlite.storage import Storage
 from backlite.types import EVICTION_POLICIES
 from backlite.types import CacheItem
 from backlite.types import EvictionPolicy
@@ -16,10 +16,10 @@ except PackageNotFoundError:  # nocov
 
 __all__ = (
     "EVICTION_POLICIES",
-    "Cache",
     "CacheItem",
     "EvictionPolicy",
     "ParamHashFunc",
+    "Storage",
     "async_cached",
     "cached",
 )
