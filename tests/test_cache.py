@@ -1,6 +1,5 @@
 import time
-from datetime import UTC
-from datetime import datetime
+from datetime import timedelta
 
 from backlite import Cache
 from backlite.types import CacheItem
@@ -92,8 +91,7 @@ def test_items_totalling_larger_than_size_limit_are_evicted():
 def test_exires_at():
     cache = CleanCache("test.db")
 
-    now = datetime.now(UTC)
-    item1 = CacheItem(value=b"123", expires_at=now)
+    item1 = CacheItem(value=b"123", expiration=timedelta(seconds=0))
     cache.set_one("key1", item1)
 
     time.sleep(0.1)

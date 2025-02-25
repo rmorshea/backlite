@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import timedelta
 from inspect import Signature
 from typing import Any
 from typing import Literal
@@ -22,8 +22,8 @@ class CacheItem(TypedDict, total=False):
 
     value: Required[bytes]
     """The value of the item."""
-    expires_at: datetime | None
-    """The time at which the item expires."""
+    expiration: timedelta | None
+    """The time until the item expires."""
 
 
 class ParamHashFunc(Protocol):

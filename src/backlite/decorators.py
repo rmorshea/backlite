@@ -2,8 +2,6 @@ import pickle
 from collections.abc import Awaitable
 from collections.abc import Callable
 from collections.abc import Coroutine
-from datetime import UTC
-from datetime import datetime
 from datetime import timedelta
 from functools import wraps
 from inspect import Signature
@@ -28,7 +26,7 @@ def cached(
     func: Callable[P, R],
     *,
     storage: Cache,
-    expire_after: timedelta | None = None,
+    expiration: timedelta | None = None,
 ) -> Callable[P, R]:
     """Decorate a function to cache its result."""
     sig = signature(func)
@@ -40,13 +38,7 @@ def cached(
             value = pickle.loads(item["value"])
         else:
             value = func(*args, **kwargs)
-            storage.set_one(
-                key,
-                {
-                    "value": pickle.dumps(value),
-                    "expires_at": datetime.now(UTC) + expire_after if expire_after else None,
-                },
-            )
+            storage.set_one(key, {"value": pickle.dumps(value), "expiration": expiration})
         return value
 
     return wrapper
@@ -57,7 +49,7 @@ def async_cached(
     func: AsyncCallable[P, R],
     storage: Cache,
     *,
-    expire_after: timedelta | None = None,
+    expiration: timedelta | None = None,
 ) -> CoroCallable[P, R]:
     """Decorate an async function to cache its result."""
     sig = signature(func)
@@ -69,13 +61,7 @@ def async_cached(
             value = pickle.loads(item["value"])
         else:
             value = await func(*args, **kwargs)
-            storage.set_one(
-                key,
-                {
-                    "value": pickle.dumps(value),
-                    "expires_at": datetime.now(UTC) + expire_after if expire_after else None,
-                },
-            )
+            storage.set_one(key, {"value": pickle.dumps(value), "expiration": expiration})
         return value
 
     return wrapper

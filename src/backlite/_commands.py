@@ -25,6 +25,7 @@ def get_cache_items(
             """
             SELECT key, value, expires_at
             FROM cache
+            WHERE expires_at IS NULL OR expires_at > unixepoch('subsec')
             """
         ).fetchall()
         keys = [r[0] for r in rows]
@@ -34,11 +35,13 @@ def get_cache_items(
             SELECT key, value, expires_at
             FROM cache
             WHERE key IN ({", ".join("?" for _ in keys)})
+            AND expires_at IS NULL OR expires_at > unixepoch('subsec')
             """,  # noqa: S608 (ok because values are not user input)
             tuple(keys),
         ).fetchall()
+    now = datetime.now(tz=UTC)
     result = {
-        key: CacheItem(value=value, expires_at=datetime.fromtimestamp(expires_at, tz=UTC))
+        key: CacheItem(value=value, expiration=datetime.fromtimestamp(expires_at, tz=UTC) - now)
         if expires_at is not None
         else CacheItem(value=value)
         for key, value, expires_at in rows
@@ -57,6 +60,7 @@ def get_cache_items(
 
 def set_cache_items(conn: sqlite3.Connection, items: Mapping[str, CacheItem]) -> None:
     """Update the cache with the given values."""
+    now = datetime.now(tz=UTC)
     conn.executemany(
         """
         INSERT OR REPLACE INTO cache (key, value, expires_at)
@@ -66,8 +70,8 @@ def set_cache_items(conn: sqlite3.Connection, items: Mapping[str, CacheItem]) ->
             (
                 key,
                 value["value"],
-                expires_at.timestamp()
-                if (expires_at := value.get("expires_at")) is not None
+                (now + expiration).timestamp()
+                if (expiration := value.get("expiration")) is not None
                 else None,
             )
             for key, value in items.items()

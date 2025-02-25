@@ -5,6 +5,7 @@ from collections.abc import Iterator
 from collections.abc import Mapping
 from contextlib import AbstractContextManager
 from contextlib import contextmanager
+from datetime import timedelta
 from pathlib import Path
 
 from backlite import _commands
@@ -23,6 +24,7 @@ class Cache:
         *,
         size_limit: int = 1024**3,  # 1 GB
         eviction_policy: EvictionPolicy = "least-recently-used",
+        default_expiration: timedelta | None = None,
         mkdir: bool = True,
     ) -> None:
         """Create a new cache.
@@ -37,6 +39,9 @@ class Cache:
                 of the SQLite file itself.
             eviction_policy:
                 The eviction policy to use.
+            default_expiration:
+                The default expiration time for items in the cache. If not specified, items will
+                never expire unless explicitly declared at the time of setting.
             mkdir:
                 Whether to create the containing directory if it does not exist.
         """
@@ -52,6 +57,7 @@ class Cache:
         self._connect = _connector(path)
         self._eviction_policy: EvictionPolicy = eviction_policy
         self._size_limit = size_limit
+        self._default_expiration = default_expiration
 
         self._init()
 
