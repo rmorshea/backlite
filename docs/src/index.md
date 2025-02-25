@@ -38,11 +38,15 @@ expensive_function(3, 4)  # slow
 You can use barriers to prevent a function from being called while the result is being cached.
 
 ```python
-from backlite import Storage, cached
+import time
 from threading import Lock
+
+from backlite import Storage
+from backlite import cached
 
 storage = Storage("cache.db")
 lock = Lock()
+
 
 @cached(storage=storage, barrier=lock)
 def expensive_function(x, y):
@@ -55,7 +59,10 @@ def expensive_function(x, y):
 You can use the `@async_cached` decorator to cache the results of an async functions.
 
 ```python
-from backlite import Storage, async_cached
+import asyncio
+
+from backlite import Storage
+from backlite import async_cached
 
 storage = Storage("cache.db")
 
