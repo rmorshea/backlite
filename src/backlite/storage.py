@@ -20,19 +20,17 @@ class Storage:
 
     def __init__(
         self,
-        path: Path | str,
+        location: Path | str,
         *,
         size_limit: int = 1024**3,  # 1 GB
         eviction_policy: EvictionPolicy = "least-recently-used",
         default_expiration: timedelta | None = None,
-        mkdir: bool = True,
     ) -> None:
         """Create a new storage.
 
         Args:
-            path:
-                The path to the SQLite database file. If the file does not exist, it will be
-                created.
+            location:
+                The location where the SQLite database should be created.
             size_limit:
                 An approximate limit on the size of the cache. Approximate because the size of the
                 cache is calculated based on the length of the stored values in bytes not the size
@@ -42,19 +40,12 @@ class Storage:
             default_expiration:
                 The default expiration time for items in the cache. If not specified, items will
                 never expire unless explicitly declared at the time of setting.
-            mkdir:
-                Whether to create the containing directory if it does not exist.
         """
         if eviction_policy not in EVICTION_POLICIES:
             msg = f"Invalid eviction policy: {eviction_policy!r}"
             raise ValueError(msg)
 
-        path = Path(path)
-        if mkdir:
-            path.parent.mkdir(parents=True, exist_ok=True)
-
-        sqlite3.connect(path)
-        self._connect = _connector(path)
+        self._connect = _connector(location)
         self._eviction_policy: EvictionPolicy = eviction_policy
         self._size_limit = size_limit
         self._default_expiration = default_expiration
@@ -134,10 +125,10 @@ def _prepare_items(
     return to_set, size
 
 
-def _connector(path: Path) -> Callable[[], AbstractContextManager[sqlite3.Connection]]:
+def _connector(location: Path | str) -> Callable[[], AbstractContextManager[sqlite3.Connection]]:
     @contextmanager
     def connect() -> Iterator[sqlite3.Connection]:
-        with sqlite3.connect(path) as conn:
+        with sqlite3.connect(location) as conn:
             yield conn
 
     return connect
